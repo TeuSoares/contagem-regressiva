@@ -1,0 +1,787 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Contagem regressiva — Galway → Brasil</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-deep: #050714;
+        --bg-nebula-1: #1b0e3d;
+        --bg-nebula-2: #062024;
+        --emerald: #2ee6a6;
+        --emerald-dim: #1a8f6a;
+        --gold: #ffc857;
+        --orange: #ff8a5c;
+        --text-primary: #f4f6ff;
+        --text-muted: #8891b5;
+        --line: rgba(244, 246, 255, 0.12);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+        background: var(--bg-deep);
+        color: var(--text-primary);
+        font-family: "Inter", sans-serif;
+        overflow-x: hidden;
+      }
+
+      #stage {
+        position: relative;
+        min-height: 100vh;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 6vh 5vw 8vh;
+        overflow: hidden;
+      }
+
+      /* ---------- fundo espacial ---------- */
+      #stars-canvas {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        display: block;
+      }
+      .nebula {
+        position: fixed;
+        border-radius: 50%;
+        filter: blur(90px);
+        z-index: 0;
+        opacity: 0.55;
+        pointer-events: none;
+      }
+      .nebula-1 {
+        width: 46vw;
+        height: 46vw;
+        top: -14vw;
+        left: -12vw;
+        background: var(--bg-nebula-1);
+      }
+      .nebula-2 {
+        width: 38vw;
+        height: 38vw;
+        bottom: -14vw;
+        right: -10vw;
+        background: var(--bg-nebula-2);
+      }
+
+      /* Fogos acima de tudo (z-index alto), mas transparentes (sem retângulo roxo) */
+      #fireworks-canvas {
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        pointer-events: none;
+        display: block;
+      }
+
+      /* ---------- conteúdo ---------- */
+      .content {
+        position: relative;
+        z-index: 2;
+        width: 100%;
+        max-width: 920px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .eyebrow {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.72rem;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        color: var(--emerald);
+        display: flex;
+        align-items: center;
+        gap: 0.6em;
+        margin-bottom: 1.4rem;
+      }
+      .eyebrow::before,
+      .eyebrow::after {
+        content: "";
+        width: 26px;
+        height: 1px;
+        background: var(--emerald-dim);
+        opacity: 0.7;
+      }
+
+      h1.title {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 600;
+        font-size: clamp(1.2rem, 2.6vw, 1.6rem);
+        color: var(--text-muted);
+        text-align: center;
+        margin-bottom: 2.6rem;
+        letter-spacing: 0.01em;
+      }
+      h1.title strong {
+        color: var(--text-primary);
+        font-weight: 700;
+      }
+
+      /* ---------- cronômetro ---------- */
+      #timer {
+        display: flex;
+        gap: clamp(0.6rem, 2.5vw, 2.2rem);
+        margin-bottom: 0.6rem;
+      }
+      .unit {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .unit .num {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 700;
+        font-size: clamp(2.6rem, 9vw, 6rem);
+        line-height: 1;
+        letter-spacing: -0.02em;
+        background: linear-gradient(180deg, #ffffff, var(--emerald) 140%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        font-variant-numeric: tabular-nums;
+        text-shadow: 0 0 60px rgba(46, 230, 166, 0.25);
+      }
+      .unit .lbl {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.68rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-top: 0.4rem;
+      }
+      .colon {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 700;
+        font-size: clamp(2rem, 7vw, 4.6rem);
+        color: var(--line);
+        align-self: flex-start;
+        margin-top: 0.1em;
+      }
+
+      #arrived-msg {
+        display: none;
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 700;
+        font-size: clamp(2.2rem, 7vw, 4.4rem);
+        text-align: center;
+        background: linear-gradient(90deg, var(--gold), var(--emerald));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        margin-bottom: 0.4rem;
+      }
+      #arrived-sub {
+        display: none;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.8rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-bottom: 2rem;
+        text-align: center;
+      }
+
+      /* ---------- painel de voo ---------- */
+      .flightpanel {
+        width: 100%;
+        margin-top: 3.2rem;
+        padding: 2.4rem clamp(1rem, 4vw, 3rem) 2rem;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: linear-gradient(
+          180deg,
+          rgba(5, 7, 20, 0.75),
+          rgba(5, 7, 20, 0.55)
+        );
+        backdrop-filter: blur(8px);
+        position: relative;
+      }
+
+      .route-labels {
+        display: flex;
+        justify-content: space-between;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        color: var(--text-muted);
+        margin-bottom: 0.6rem;
+      }
+      .route-labels .code {
+        color: var(--text-primary);
+        font-weight: 700;
+        font-size: 0.9rem;
+        letter-spacing: 0.06em;
+      }
+      .route-labels .city {
+        display: block;
+        margin-top: 0.15rem;
+        color: var(--text-muted);
+        font-size: 0.68rem;
+      }
+      .route-labels .right {
+        text-align: right;
+      }
+
+      #route-svg {
+        width: 100%;
+        height: auto;
+        display: block;
+        overflow: visible;
+      }
+      .route-path {
+        fill: none;
+        stroke: var(--line);
+        stroke-width: 2;
+        stroke-dasharray: 4 8;
+        stroke-linecap: round;
+      }
+      .route-path-progress {
+        fill: none;
+        stroke: var(--emerald);
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-dasharray: 1000;
+        stroke-dashoffset: 1000;
+      }
+      .node {
+        fill: var(--bg-deep);
+        stroke: var(--text-muted);
+        stroke-width: 1.5;
+      }
+      .node.dest {
+        stroke: var(--gold);
+      }
+      .node-pulse {
+        fill: none;
+        stroke: var(--emerald);
+        stroke-width: 1.5;
+        opacity: 0.5;
+      }
+
+      #plane-icon path {
+        fill: var(--emerald);
+        filter: drop-shadow(0 0 6px rgba(46, 230, 166, 0.5));
+      }
+      #plane-window {
+        fill: var(--bg-deep);
+        stroke: var(--gold);
+        stroke-width: 1.2;
+      }
+      #friend-face-img {
+        clip-path: circle(50%);
+      }
+
+      .distance-readout {
+        display: flex;
+        justify-content: center;
+        gap: 2.2rem;
+        margin-top: 1.4rem;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.68rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+      }
+      .distance-readout span.val {
+        color: var(--emerald);
+        font-weight: 700;
+      }
+
+      footer {
+        position: relative;
+        z-index: 2;
+        margin-top: 3rem;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.66rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        opacity: 0.6;
+        text-align: center;
+      }
+
+      @media (max-width: 560px) {
+        .unit .num {
+          font-size: 2.4rem;
+        }
+        .colon {
+          font-size: 1.8rem;
+        }
+        .distance-readout {
+          gap: 1.1rem;
+          flex-wrap: wrap;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation-duration: 0.001ms !important;
+          transition-duration: 0.001ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stars-canvas"></canvas>
+    <div class="nebula nebula-1"></div>
+    <div class="nebula nebula-2"></div>
+    <canvas id="fireworks-canvas"></canvas>
+
+    <div id="stage">
+      <div class="content">
+        <div class="eyebrow">Rastreamento de voo</div>
+        <h1 class="title">
+          Contagem regressiva para a <strong>chegada ao Brasil</strong> ✈️
+        </h1>
+
+        <div id="timer">
+          <div class="unit">
+            <div class="num" id="d">00</div>
+            <div class="lbl">dias</div>
+          </div>
+          <div class="colon">:</div>
+          <div class="unit">
+            <div class="num" id="h">00</div>
+            <div class="lbl">horas</div>
+          </div>
+          <div class="colon">:</div>
+          <div class="unit">
+            <div class="num" id="m">00</div>
+            <div class="lbl">min</div>
+          </div>
+          <div class="colon">:</div>
+          <div class="unit">
+            <div class="num" id="s">00</div>
+            <div class="lbl">seg</div>
+          </div>
+        </div>
+
+        <div id="arrived-msg">
+          Bem-vinda de volta!
+          <span class="code"
+            ><svg
+              width="50"
+              height="42"
+              viewBox="0 0 27 18"
+              style="
+                vertical-align: -2px;
+                margin-left: 4px;
+                border-radius: 2px;
+                overflow: hidden;
+              "
+            >
+              <rect x="0" y="0" width="27" height="18" fill="#009c3b"></rect>
+              <polygon
+                points="13.5,2.2 24.8,9 13.5,15.8 2.2,9"
+                fill="#ffdf00"
+              ></polygon>
+              <circle cx="13.5" cy="9" r="4.4" fill="#002776"></circle></svg
+          ></span>
+        </div>
+        <div id="arrived-sub">Galway → Brasil · pouso confirmado</div>
+
+        <div class="flightpanel">
+          <div class="route-labels">
+            <div>
+              <span class="code">
+                <svg
+                  width="20"
+                  height="14"
+                  viewBox="0 0 27 18"
+                  style="
+                    vertical-align: -2px;
+                    margin-right: 4px;
+                    border-radius: 2px;
+                    overflow: hidden;
+                  "
+                >
+                  <rect x="0" y="0" width="9" height="18" fill="#169b62"></rect>
+                  <rect x="9" y="0" width="9" height="18" fill="#ffffff"></rect>
+                  <rect
+                    x="18"
+                    y="0"
+                    width="9"
+                    height="18"
+                    fill="#ff883e"
+                  ></rect></svg
+                >GAL</span
+              >
+              <span class="city">Galway, Irlanda</span>
+            </div>
+            <div class="right">
+              <span class="code"
+                >BRA<svg
+                  width="20"
+                  height="14"
+                  viewBox="0 0 27 18"
+                  style="
+                    vertical-align: -2px;
+                    margin-left: 4px;
+                    border-radius: 2px;
+                    overflow: hidden;
+                  "
+                >
+                  <rect
+                    x="0"
+                    y="0"
+                    width="27"
+                    height="18"
+                    fill="#009c3b"
+                  ></rect>
+                  <polygon
+                    points="13.5,2.2 24.8,9 13.5,15.8 2.2,9"
+                    fill="#ffdf00"
+                  ></polygon>
+                  <circle cx="13.5" cy="9" r="4.4" fill="#002776"></circle></svg
+              ></span>
+              <span class="city">Santa Gertrudes, Brasil</span>
+            </div>
+          </div>
+
+          <svg
+            id="route-svg"
+            viewBox="0 0 800 240"
+            preserveAspectRatio="xMidYMid meet"
+          >
+            <path
+              id="path-base"
+              class="route-path"
+              d="M 70,195 Q 400,40 730,195"
+            ></path>
+            <path
+              id="path-progress"
+              class="route-path-progress"
+              d="M 70,195 Q 400,40 730,195"
+            ></path>
+
+            <defs>
+              <g id="flag-ie">
+                <rect x="0" y="0" width="9" height="18" fill="#169b62"></rect>
+                <rect x="9" y="0" width="9" height="18" fill="#ffffff"></rect>
+                <rect x="18" y="0" width="9" height="18" fill="#ff883e"></rect>
+                <rect
+                  x="0.5"
+                  y="0.5"
+                  width="26"
+                  height="17"
+                  fill="none"
+                  stroke="rgba(0,0,0,.25)"
+                  stroke-width="1"
+                ></rect>
+              </g>
+              <g id="flag-br">
+                <rect x="0" y="0" width="27" height="18" fill="#009c3b"></rect>
+                <polygon
+                  points="13.5,2.2 24.8,9 13.5,15.8 2.2,9"
+                  fill="#ffdf00"
+                ></polygon>
+                <circle cx="13.5" cy="9" r="4.4" fill="#002776"></circle>
+                <rect
+                  x="0.5"
+                  y="0.5"
+                  width="26"
+                  height="17"
+                  fill="none"
+                  stroke="rgba(0,0,0,.25)"
+                  stroke-width="1"
+                ></rect>
+              </g>
+            </defs>
+
+            <use href="#flag-ie" x="57" y="150"></use>
+            <circle class="node-pulse" cx="70" cy="195" r="10"></circle>
+            <circle class="node" cx="70" cy="195" r="7"></circle>
+
+            <use href="#flag-br" x="717" y="150"></use>
+            <circle class="node dest" cx="730" cy="195" r="7"></circle>
+
+            <g id="plane-group">
+              <g id="plane-icon">
+                <path
+                  d="M 0 -34 C 7 -34, 10 -25, 10 -14 L 10 -3 L 36 10 L 36 17 L 10 10 L 10 26 L 18 33 L 18 36 L 0 32 L -18 36 L -18 33 L -10 26 L -10 10 L -36 17 L -36 10 L -10 -3 L -10 -14 C -10 -25, -7 -34, 0 -34 Z"
+                ></path>
+              </g>
+
+              <circle
+                id="plane-window"
+                cx="0"
+                cy="0"
+                r="22"
+                stroke-width="1.5"
+              ></circle>
+              <clipPath id="face-clip">
+                <circle cx="0" cy="0" r="20"></circle>
+              </clipPath>
+              <image
+                id="friend-face-img"
+                href="./foto.png"
+                x="-20"
+                y="-20"
+                width="40"
+                height="40"
+                clip-path="url(#face-clip)"
+                preserveAspectRatio="xMidYMid slice"
+              ></image>
+            </g>
+          </svg>
+
+          <div class="distance-readout">
+            <div>ORIGEM <span class="val">GALWAY</span></div>
+            <div>
+              STATUS
+              <span class="val" id="flight-status">AGUARDANDO EMBARQUE</span>
+            </div>
+            <div>DESTINO <span class="val">BRASIL</span></div>
+          </div>
+        </div>
+
+        <footer>falta pouco tempo! ✦</footer>
+      </div>
+    </div>
+
+    <script>
+      const targetDate = new Date("2026-08-14T12:00:00-03:00").getTime();
+
+      /* Estrelas */
+      const starsCanvas = document.getElementById("stars-canvas");
+      const sctx = starsCanvas.getContext("2d");
+      let stars = [];
+
+      function resizeStars() {
+        starsCanvas.width = window.innerWidth;
+        starsCanvas.height = window.innerHeight;
+        const count = Math.floor(
+          (window.innerWidth * window.innerHeight) / 6000,
+        );
+        stars = Array.from({ length: count }, () => ({
+          x: Math.random() * starsCanvas.width,
+          y: Math.random() * starsCanvas.height,
+          r: Math.random() * 1.3 + 0.2,
+          phase: Math.random() * Math.PI * 2,
+          speed: Math.random() * 0.015 + 0.005,
+        }));
+      }
+      resizeStars();
+      window.addEventListener("resize", resizeStars);
+
+      function drawStars(t) {
+        sctx.clearRect(0, 0, starsCanvas.width, starsCanvas.height);
+        for (const st of stars) {
+          const tw = 0.5 + 0.5 * Math.sin(t * st.speed + st.phase);
+          sctx.globalAlpha = 0.25 + tw * 0.75;
+          sctx.fillStyle = "#f4f6ff";
+          sctx.beginPath();
+          sctx.arc(st.x, st.y, st.r, 0, Math.PI * 2);
+          sctx.fill();
+        }
+        sctx.globalAlpha = 1;
+        requestAnimationFrame(drawStars);
+      }
+      requestAnimationFrame(drawStars);
+
+      /* Cronômetro e Voo */
+      const elD = document.getElementById("d");
+      const elH = document.getElementById("h");
+      const elM = document.getElementById("m");
+      const elS = document.getElementById("s");
+      const timerBox = document.getElementById("timer");
+      const arrivedMsg = document.getElementById("arrived-msg");
+      const arrivedSub = document.getElementById("arrived-sub");
+      const flightStatus = document.getElementById("flight-status");
+      const pathBase = document.getElementById("path-base");
+      const pathProgress = document.getElementById("path-progress");
+      const planeGroup = document.getElementById("plane-group");
+      const planeIcon = document.getElementById("plane-icon");
+      const pathLength = pathBase.getTotalLength();
+
+      let landed = false;
+      let totalCountdownSpan = null;
+
+      function placePlaneAt(fraction) {
+        fraction = Math.max(0, Math.min(1, fraction));
+        const point = pathBase.getPointAtLength(pathLength * fraction);
+        const ahead = pathBase.getPointAtLength(
+          Math.min(pathLength, pathLength * fraction + 1),
+        );
+        const angle =
+          (Math.atan2(ahead.y - point.y, ahead.x - point.x) * 180) / Math.PI;
+
+        planeGroup.setAttribute(
+          "transform",
+          `translate(${point.x},${point.y})`,
+        );
+        planeIcon.setAttribute("transform", `rotate(${angle + 90})`);
+
+        pathProgress.style.strokeDasharray = pathLength;
+        pathProgress.style.strokeDashoffset = pathLength * (1 - fraction);
+      }
+
+      function updateTimer() {
+        const now = Date.now();
+        const diff = targetDate - now;
+
+        if (diff <= 0) {
+          if (!landed) startArrivalSequence();
+          return;
+        }
+
+        if (totalCountdownSpan === null) {
+          totalCountdownSpan = diff;
+        }
+
+        const sec = Math.floor(diff / 1000) % 60;
+        const min = Math.floor(diff / (1000 * 60)) % 60;
+        const hrs = Math.floor(diff / (1000 * 60 * 60)) % 24;
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+        elD.textContent = String(days).padStart(2, "0");
+        elH.textContent = String(hrs).padStart(2, "0");
+        elM.textContent = String(min).padStart(2, "0");
+        elS.textContent = String(sec).padStart(2, "0");
+
+        placePlaneAt(0);
+        flightStatus.textContent =
+          days > 0 ? "AGUARDANDO EMBARQUE" : "EMBARQUE PRÓXIMO";
+      }
+
+      placePlaneAt(0);
+      updateTimer();
+      setInterval(updateTimer, 1000);
+
+      function startArrivalSequence() {
+        landed = true;
+        flightStatus.textContent = "POUSANDO...";
+
+        const duration = 3200;
+        const startTime = performance.now();
+
+        function animateFlight(now) {
+          const t = Math.min(1, (now - startTime) / duration);
+          const eased = 1 - Math.pow(1 - t, 3);
+          placePlaneAt(eased);
+
+          if (t < 1) {
+            requestAnimationFrame(animateFlight);
+          } else {
+            onLanded();
+          }
+        }
+        requestAnimationFrame(animateFlight);
+      }
+
+      function onLanded() {
+        flightStatus.textContent = "POUSOU NO BRASIL 🎉";
+        timerBox.style.display = "none";
+        arrivedMsg.style.display = "block";
+        arrivedSub.style.display = "block";
+        launchFireworks();
+      }
+
+      /* Fogos acima de tudo, mas mantendo a transparência perfeita */
+      const fwCanvas = document.getElementById("fireworks-canvas");
+      const fctx = fwCanvas.getContext("2d");
+      let particles = [];
+      let fireworksRunning = false;
+
+      function resizeFw() {
+        fwCanvas.width = window.innerWidth;
+        fwCanvas.height = window.innerHeight;
+      }
+      resizeFw();
+      window.addEventListener("resize", resizeFw);
+
+      const fwColors = ["#2ee6a6", "#ffc857", "#ff8a5c", "#ffffff", "#6ee7ff"];
+
+      function spawnBurst(x, y) {
+        const count = 55 + Math.floor(Math.random() * 30);
+        for (let i = 0; i < count; i++) {
+          const angle = Math.PI * 2 * (i / count) + Math.random() * 0.2;
+          const speed = 2 + Math.random() * 4;
+          particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: 1,
+            decay: 0.009 + Math.random() * 0.012,
+            color: fwColors[Math.floor(Math.random() * fwColors.length)],
+            size: Math.random() * 2.2 + 1,
+          });
+        }
+      }
+
+      function fireworksLoop() {
+        fctx.clearRect(0, 0, fwCanvas.width, fwCanvas.height);
+
+        particles.forEach((p) => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.035; // gravidade
+          p.life -= p.decay;
+        });
+        particles = particles.filter((p) => p.life > 0);
+
+        particles.forEach((p) => {
+          fctx.globalAlpha = Math.max(p.life, 0);
+          fctx.fillStyle = p.color;
+          fctx.beginPath();
+          fctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          fctx.fill();
+        });
+        fctx.globalAlpha = 1;
+
+        if (fireworksRunning) {
+          requestAnimationFrame(fireworksLoop);
+        }
+      }
+
+      function launchFireworks() {
+        fireworksRunning = true;
+        requestAnimationFrame(fireworksLoop);
+
+        function randomBurst() {
+          if (!fireworksRunning) return;
+          const x = fwCanvas.width * (0.15 + Math.random() * 0.7);
+          const y = fwCanvas.height * (0.15 + Math.random() * 0.5);
+          spawnBurst(x, y);
+          setTimeout(randomBurst, 500 + Math.random() * 600);
+        }
+        randomBurst();
+
+        setTimeout(() => {
+          fireworksRunning = false;
+          setTimeout(() => {
+            fireworksRunning = true;
+            requestAnimationFrame(fireworksLoop);
+            (function gentleLoop() {
+              if (Math.random() < 0.6) {
+                spawnBurst(
+                  fwCanvas.width * (0.2 + Math.random() * 0.6),
+                  fwCanvas.height * (0.15 + Math.random() * 0.35),
+                );
+              }
+              setTimeout(gentleLoop, 1500 + Math.random() * 1400);
+            })();
+          }, 400);
+        }, 12000);
+      }
+    </script>
+  </body>
+</html>
